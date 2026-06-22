@@ -1,6 +1,7 @@
 -- ============================================
--- УНИВЕРСАЛЬНЫЙ ESP (только точные названия)
+-- УНИВЕРСАЛЬНЫЙ ESP (дружелюбная версия)
 -- Подсвечивает: VoughtCrate, TempVSyringe, Syringe, Vial, TempV
+-- Управление: кнопка G для показа/скрытия меню, окно можно перемещать
 -- ============================================
 
 print("🟢 УНИВЕРСАЛЬНЫЙ ESP ЗАГРУЖЕН")
@@ -8,6 +9,7 @@ print("🟢 УНИВЕРСАЛЬНЫЙ ESP ЗАГРУЖЕН")
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 local UserInputService = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
 
 -- ===== ПЕРЕМЕННЫЕ =====
 local syringeESP = true
@@ -15,6 +17,7 @@ local playerESP = true
 local syringeHighlights = {}
 local playerHighlights = {}
 local scanCompleted = false
+local menuVisible = true
 
 -- ===== ФУНКЦИЯ: ПОДСВЕТКА КОРОБКИ VoughtCrate (только зелёный, без текста) =====
 local function addCrateHighlight(obj)
@@ -157,49 +160,39 @@ local screenGui = Instance.new("ScreenGui")
 screenGui.Name = "UniversalESP"
 screenGui.Parent = game:GetService("CoreGui")
 
+-- Главное окно
 local mainFrame = Instance.new("Frame")
 mainFrame.Size = UDim2.new(0, 240, 0, 160)
-mainFrame.Position = UDim2.new(0, 20, 0, 100)
+mainFrame.Position = UDim2.new(0.5, -120, 0.5, -80) -- Центр экрана
 mainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
 mainFrame.BorderSizePixel = 2
 mainFrame.BorderColor3 = Color3.fromRGB(0, 255, 0)
 mainFrame.BackgroundTransparency = 0.1
 mainFrame.Parent = screenGui
 
--- Заголовок
+-- Заголовок (для перетаскивания)
 local titleBar = Instance.new("TextLabel")
-titleBar.Size = UDim2.new(1, -60, 0, 30)
+titleBar.Size = UDim2.new(1, 0, 0, 30)
 titleBar.Position = UDim2.new(0, 0, 0, 0)
-titleBar.Text = "🔧 УНИВЕРСАЛЬНЫЙ ESP (тяни)"
+titleBar.Text = "🔧 УНИВЕРСАЛЬНЫЙ ESP (тяни меня)"
 titleBar.TextColor3 = Color3.fromRGB(0, 255, 0)
 titleBar.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
 titleBar.BackgroundTransparency = 0.3
-titleBar.TextXAlignment = Enum.TextXAlignment.Left
+titleBar.TextXAlignment = Enum.TextXAlignment.Center
 titleBar.Font = Enum.Font.GothamBold
 titleBar.TextSize = 13
 titleBar.Parent = mainFrame
 
--- Кнопка СВЕРНУТЬ (минус)
+-- Кнопка СВЕРНУТЬ (минус) — она остаётся, чтобы сворачивать окно
 local minBtn = Instance.new("TextButton")
 minBtn.Size = UDim2.new(0, 25, 0, 25)
-minBtn.Position = UDim2.new(1, -55, 0, 3)
+minBtn.Position = UDim2.new(1, -30, 0, 3)
 minBtn.Text = "−"
 minBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 minBtn.BackgroundColor3 = Color3.fromRGB(200, 100, 0)
 minBtn.Font = Enum.Font.GothamBold
 minBtn.TextSize = 18
 minBtn.Parent = titleBar
-
--- Кнопка закрытия (крестик)
-local closeBtn = Instance.new("TextButton")
-closeBtn.Size = UDim2.new(0, 25, 0, 25)
-closeBtn.Position = UDim2.new(1, -30, 0, 3)
-closeBtn.Text = "✕"
-closeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-closeBtn.BackgroundColor3 = Color3.fromRGB(200, 0, 0)
-closeBtn.Font = Enum.Font.GothamBold
-closeBtn.TextSize = 16
-closeBtn.Parent = titleBar
 
 -- Кнопка: ESP на сыворотку
 local syringeBtn = Instance.new("TextButton")
@@ -223,7 +216,7 @@ playerBtn.Font = Enum.Font.GothamBold
 playerBtn.TextSize = 13
 playerBtn.Parent = mainFrame
 
--- ===== КНОПКА ДЛЯ РАЗВОРАЧИВАНИЯ =====
+-- ===== КНОПКА ДЛЯ РАЗВОРАЧИВАНИЯ (квадратик) =====
 local openBtn = Instance.new("TextButton")
 openBtn.Size = UDim2.new(0, 50, 0, 50)
 openBtn.Position = UDim2.new(0, 20, 0, 120)
@@ -237,17 +230,62 @@ openBtn.BorderColor3 = Color3.fromRGB(255, 255, 255)
 openBtn.Visible = false
 openBtn.Parent = screenGui
 
+-- ===== ПЕРЕМЕЩЕНИЕ ОКНА =====
+local dragging = false
+local dragStart, startPos
+
+titleBar.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging = true
+        dragStart = input.Position
+        startPos = mainFrame.Position
+    end
+end)
+
+UserInputService.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging = false
+    end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+    if dragging and (input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseMovement) then
+        local delta = input.Position - dragStart
+        mainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+    end
+end)
+
 -- ===== ОБРАБОТЧИКИ =====
+-- Свёртывание и развёртывание
 minBtn.MouseButton1Click:Connect(function()
     mainFrame.Visible = false
     openBtn.Visible = true
+    menuVisible = false
 end)
 
 openBtn.MouseButton1Click:Connect(function()
     mainFrame.Visible = true
     openBtn.Visible = false
+    menuVisible = true
 end)
 
+-- Горячая клавиша G для показа/скрытия
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if gameProcessed then return end
+    if input.KeyCode == Enum.KeyCode.G then
+        if menuVisible then
+            mainFrame.Visible = false
+            openBtn.Visible = true
+            menuVisible = false
+        else
+            mainFrame.Visible = true
+            openBtn.Visible = false
+            menuVisible = true
+        end
+    end
+end)
+
+-- Кнопки ESP
 syringeBtn.MouseButton1Click:Connect(function()
     syringeESP = not syringeESP
     if syringeESP then
@@ -301,10 +339,6 @@ playerBtn.MouseButton1Click:Connect(function()
     end
 end)
 
-closeBtn.MouseButton1Click:Connect(function()
-    screenGui:Destroy()
-end)
-
 -- ===== ОБРАБОТЧИК НОВЫХ ОБЪЕКТОВ =====
 workspace.DescendantAdded:Connect(function(obj)
     task.wait(0.1)
@@ -337,35 +371,10 @@ for _, plr in pairs(Players:GetPlayers()) do
     end
 end
 
--- ===== ПЕРЕМЕЩЕНИЕ ОКНА =====
-local dragging = false
-local dragStart, startPos
-
-titleBar.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
-        dragging = true
-        dragStart = input.Position
-        startPos = mainFrame.Position
-    end
-end)
-
-UserInputService.InputEnded:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
-        dragging = false
-    end
-end)
-
-UserInputService.InputChanged:Connect(function(input)
-    if dragging and (input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseMovement) then
-        local delta = input.Position - dragStart
-        mainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
-    end
-end)
-
 -- ===== СТАРТ =====
 game:GetService("StarterGui"):SetCore("SendNotification", {
     Title = "🟢 УНИВЕРСАЛЬНЫЙ ESP";
-    Text = "Ищу: VoughtCrate, TempVSyringe, Syringe, Vial, TempV";
+    Text = "Нажми G, чтобы показать/скрыть меню";
     Duration = 4;
 })
 
@@ -374,4 +383,5 @@ print("🟢 УНИВЕРСАЛЬНЫЙ ESP ГОТОВ")
 print("   📦 VoughtCrate — просто зелёные")
 print("   💉 Сыворотки — с надписью 'СЫВОРОТКА V'")
 print("   👤 Игроки — оранжевые с именем")
+print("   ⌨️ Нажми G для показа/скрытия меню")
 print("═══════════════════════════════════════════")
